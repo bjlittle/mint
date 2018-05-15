@@ -80,6 +80,7 @@ class RegridEsmf(RegridBase):
     def createEsmfMesh(self, grid):
     	"""
     	Create ESMF mesh from VTK grid
+        @param grid instance of vtkUnstructuredGrid
     	"""
     	mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2, coord_sys=ESMF.CoordSys.SPH_RAD)
     	lons, lats = self.getGridLonLat(grid)
