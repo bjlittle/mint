@@ -58,7 +58,7 @@ class RegridBase(object):
         Get the source grid longitudes and latitudes in rad
         @return lon, lat arrays
         """
-        return self.__getGridLonLat(self.srcGrid)
+        return self.getGridLonLat(self.srcGrid)
 
 
     def getDstLonLat(self):
@@ -66,7 +66,7 @@ class RegridBase(object):
         Get the source grid longitudes and latitudes in rad
         @return lon, lat arrays
         """
-        return self.__getGridLonLat(self.dstGrid)
+        return self.getGridLonLat(self.dstGrid)
 
 
     def computeWeights(self):
@@ -85,7 +85,7 @@ class RegridBase(object):
         numDstCells = self.dstGrid.GetNumberOfCells()
         # allocate space
         res = numpy.zeros((numDstCells, 4), numpy.float64)
-        # itererate over the desCellId, srcCellId pairs
+        # iterate over the desCellId, srcCellId pairs
         for k in self.weights:
             dstCellId, srcCellId = k
             res[dstCellId, :] += self.weights[k].dot(srcData[srcCellId, :])
@@ -153,7 +153,7 @@ class RegridBase(object):
             return numpy.frombuffer(ArrayType.from_address(addr)).reshape((numCells, 4, numComponents))
 
 
-    def __getGridLonLat(self, grid):
+    def getGridLonLat(self, grid):
         """
         Get the grid longitudes and latitudes in rad
         @param grid instance of vtkUnstructuredGrid
@@ -164,5 +164,7 @@ class RegridBase(object):
         xyz = self.__getNumpyArrayFromVtkDoubleArray(numCells, 3, data)
         lons, lats = xyz[..., 0], xyz[..., 1]
         return lons, lats
+
+
 
 
