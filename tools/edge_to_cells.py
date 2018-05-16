@@ -1,7 +1,7 @@
 import numpy
 
 
-class EdgeToVerts:
+class EdgeToCells:
 
 	def __init__(self,):
 		pass
@@ -12,18 +12,15 @@ class EdgeToVerts:
         self.numCells = self.grid.GetNumberOfCells()
         self.points = self.__getNumpyArrayFromVtkDoubleArray(self.numCells, 3, 
                                                              self.grid.GetPoints().GetData())
-        self.computeJacobian()
-        self.computeVectorBasesOnVerts()
 
-
-	def setEdgeField(self, edgeData):
+	def setEdgeField(self, name, edgeData):
 
 		self.edgeData = edgeData
 
         zHat = numpy.array([0., 0., 1.])
 
-        # vector values on vertices
-        self.vectorValues = numpy.zeros((self.numCells, 4, 3))
+        # vector values on cell centres
+        self.vectorValues = numpy.zeros((self.numCells, 3))
 
         # iterate over cells
         for i in range(self.numCells):
@@ -38,61 +35,38 @@ class EdgeToVerts:
             jac = 0.5*(numpy.cross(d10, d21).dot(zHat) + numpy.cross(d32, d03).dot(zHat))
 
             drdXsiLo = + d10
+            drdXsiHi = - d32
+            drdXsi = 0.5*(drdXsiLo + drdXsiHi)
+
             drdEtaLo = - d03
+            drdEtaHi = + d21
+            drdEta = 0.5*(drdEtaLo + drdEtaHi)
 
-            drdXsi10 = d10
-            drdEta10 = d21
+            gradXsi = numpy.cross(drdEta, zHat) / jac
+            gradEta = numpy.cross(zHat, drdXsi) / jac
 
-            drdXsi11 = -d32
-            drdEta11 = d21
+            self.vectorValues[i, :] = 0.5*(edgeData[i, 0] - edgeData[i, 2])*gradXsi \
+                                    + 0.5*(edgeData[i, 1] - edgeData[i, 3])*gradEta
 
-            drdXsi01 = -d32
-            drdEta01 = -d03
+        self.vecData = vtk.vtkDoubleArray()
+        self.vecData.SetName(name)
+        self.vecData.SetNumberOfComponents(3)
+        self.vecData.SetNumberOfTuples(self.numCells)
+        self.vecData.SetVoidArray(self.vectorValues, self.numCells * 3, 1)
 
-
-            # node 00
-            self.vectorValues[i, 0, :] = + edgeData[i, 0]*gradXiLo - edgeData[i, 3]*gradEtaLo
-
-            # node 10 
-            self.vectorValues[i, 1, :] = + edgeData[i, 0]*gradXiLo + edgeData[i, 1]*gradEtaHi
-
-            # node 11
-            self.vectorValues[i, 2, :] = - edgeData[i, 0]*gradXiHi + edgeData[i, 1]*gradEtaHi
-
-            # node 01
-            self.vectorValues[i, 3, :] = - edgeData[i, 0]*gradXiHi - edgeData[i, 1]*gradEtaLo
-
-
-
-
-            # grad xsi = (dr/d eta x zHat) / jac
-            gradXsi00 = numpy.cross(drdEta00, zHat) / jac
-            gradXsi10 = numpy.cross(drdEta10, zHat) / jac
-            gradXsi11 = numpy.cross(drdEta11, zHat) / jac
-            gradXsi01 = numpy.cross(drdEta01, zHat) / jac
-
-            # grad eta = (zHat x dr/d xsi) / jac
-            gradEta00 = numpy.cross(zHat, drdXsi00) / jac
-            gradEta10 = numpy.cross(zHat, drdXsi10) / jac
-            gradEta11 = numpy.cross(zHat, drdXsi11) / jac
-            gradEta01 = numpy.cross(zHat, drdXsi01) / jac
-
-            self.vertVecBases[i, 0, :] = gradXsi00 + gradEta00
-            self.vertVecBases[i, 1, :] = gradXsi10 + gradEta10
-            self.vertVecBases[i, 2, :] = gradXsi11 + gradEta11
-            self.vertVecBases[i, 3, :] = gradXsi01 + gradEta01
+        # attach the cell centred vector field to the grid
+        self.grid.GetCellData().AddArray(self.vecData)
 
 
 	def saveToVTKFile(self, filename):
-		pass
-
-
-
-
-    def computeVectorBasesOnVerts(self):
-
-
-
+        """
+        Save the grid to a VTK file
+        @param filename VTK file
+        """
+        writer = vtk.vtkUnstructuredGridWriter()
+        writer.SetFileName(filename)
+        writer.SetInputData(self.vtk['grid'])
+        writer.Update()
 
 
     def __getNumpyArrayFromVtkDoubleArray(self, numCells, numComponents, vtkArray):
