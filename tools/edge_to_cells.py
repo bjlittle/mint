@@ -3,29 +3,41 @@ import numpy
 
 class EdgeToCells:
 
-	def __init__(self,):
-		pass
+    def __init__(self,):
+        """
+        Constructor
+        no args
+        """
+        pass
 
 
-	def setGrid(self, grid):
-		self.grid = grid
+    def setGrid(self, grid):
+        """
+        Set the grid
+        @param grid instance of vtkUnstructuredGrid
+        """
+        self.grid = grid
         self.numCells = self.grid.GetNumberOfCells()
+        # returns the grid vertices as a numpy array
         self.points = self.__getNumpyArrayFromVtkDoubleArray(self.numCells, 3, 
                                                              self.grid.GetPoints().GetData())
 
-	def setEdgeField(self, name, edgeData):
-
-		self.edgeData = edgeData
+    def setEdgeField(self, name, edgeData):
+        """
+        Set the edge field
+        @param name will use this name to store the field in the VTK grid
+        @param edgeData a numpy array of size (numcCells, 4)
+        """
 
         zHat = numpy.array([0., 0., 1.])
 
-        # vector values on cell centres
+        # store vector values at cell centres
         self.vectorValues = numpy.zeros((self.numCells, 3))
 
         # iterate over cells
         for i in range(self.numCells):
 
-            # edge displacement, anti-clockwise
+            # edge displacement, go anti-clockwise around the cell
             d10 = self.points[i, 1, :] - self.points[i, 0, :]
             d21 = self.points[i, 2, :] - self.points[i, 1, :]
             d32 = self.points[i, 3, :] - self.points[i, 2, :]
@@ -58,7 +70,7 @@ class EdgeToCells:
         self.grid.GetCellData().AddArray(self.vecData)
 
 
-	def saveToVTKFile(self, filename):
+    def saveToVTKFile(self, filename):
         """
         Save the grid to a VTK file
         @param filename VTK file
