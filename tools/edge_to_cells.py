@@ -17,38 +17,28 @@ class EdgeToVerts:
 
 
 	def setEdgeField(self, edgeData):
+
 		self.edgeData = edgeData
-
-
-	def saveToVTKFile(self, filename):
-		pass
-
-
-    def computeJacobian(self,):
-        self.jac = numpy.zeros((self.numCells,), numpy.float64)
-        for i in range(self.numCells):
-            d10 = self.points[i, 1, :] - self.points[i, 0, :]
-            d21 = self.points[i, 2, :] - self.points[i, 1, :]
-            d32 = self.points[i, 3, :] - self.points[i, 2, :]
-            d03 = self.points[i, 0, :] - self.points[i, 3, :]
-            self.jac[i] = 0.5*(numpy.cross(d10, d21).dot(zHat) + numpy.cross(d32, d03).dot(zHat))
-
-
-    def computeVectorBasesOnVerts(self):
 
         zHat = numpy.array([0., 0., 1.])
 
-        self.vertVecBases = numpy.zeros((self.numCells, 4, 3))
+        # vector values on vertices
+        self.vectorValues = numpy.zeros((self.numCells, 4, 3))
 
+        # iterate over cells
         for i in range(self.numCells):
+
+            # edge displacement, anti-clockwise
             d10 = self.points[i, 1, :] - self.points[i, 0, :]
             d21 = self.points[i, 2, :] - self.points[i, 1, :]
             d32 = self.points[i, 3, :] - self.points[i, 2, :]
             d03 = self.points[i, 0, :] - self.points[i, 3, :]
+
+            # Jacobian
             jac = 0.5*(numpy.cross(d10, d21).dot(zHat) + numpy.cross(d32, d03).dot(zHat))
 
-            drdXsi00 = d10
-            drdEta00 = -d03
+            drdXsiLo = + d10
+            drdEtaLo = - d03
 
             drdXsi10 = d10
             drdEta10 = d21
@@ -58,6 +48,22 @@ class EdgeToVerts:
 
             drdXsi01 = -d32
             drdEta01 = -d03
+
+
+            # node 00
+            self.vectorValues[i, 0, :] = + edgeData[i, 0]*gradXiLo - edgeData[i, 3]*gradEtaLo
+
+            # node 10 
+            self.vectorValues[i, 1, :] = + edgeData[i, 0]*gradXiLo + edgeData[i, 1]*gradEtaHi
+
+            # node 11
+            self.vectorValues[i, 2, :] = - edgeData[i, 0]*gradXiHi + edgeData[i, 1]*gradEtaHi
+
+            # node 01
+            self.vectorValues[i, 3, :] = - edgeData[i, 0]*gradXiHi - edgeData[i, 1]*gradEtaLo
+
+
+
 
             # grad xsi = (dr/d eta x zHat) / jac
             gradXsi00 = numpy.cross(drdEta00, zHat) / jac
@@ -75,6 +81,16 @@ class EdgeToVerts:
             self.vertVecBases[i, 1, :] = gradXsi10 + gradEta10
             self.vertVecBases[i, 2, :] = gradXsi11 + gradEta11
             self.vertVecBases[i, 3, :] = gradXsi01 + gradEta01
+
+
+	def saveToVTKFile(self, filename):
+		pass
+
+
+
+
+    def computeVectorBasesOnVerts(self):
+
 
 
 
