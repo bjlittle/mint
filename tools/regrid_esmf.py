@@ -134,9 +134,11 @@ def main():
         varr.SetNumberOfTuples(dstCellVel.shape[0])
         varr.SetVoidArray(dstCellVel, dstCellVel.shape[0]*dstCellVel.shape[1], 1)
         varr.SetName('cell_velocity')
+        dstGrid = rgrd.getDstGrid()
+        dstGrid.GetCellData().AddArray(varr)
         writer = vtk.vtkUnstructuredGridWriter()
         writer.SetFileName(args.output)
-        writer.SetInputData(rgrd.getDstGrid())
+        writer.SetInputData(dstGrid)
         writer.Update()
 
 if __name__ == '__main__':
