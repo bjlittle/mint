@@ -1,4 +1,6 @@
 import numpy
+import vtk
+import ctypes
 
 
 class EdgeToCells:
@@ -19,8 +21,18 @@ class EdgeToCells:
         self.grid = grid
         self.numCells = self.grid.GetNumberOfCells()
         # returns the grid vertices as a numpy array
-        self.points = self.__getNumpyArrayFromVtkDoubleArray(self.numCells, 3, 
-                                                             self.grid.GetPoints().GetData())
+        self.points = self.getNumpyArrayFromVtkDoubleArray(self.numCells, 3, 
+                                                           self.grid.GetPoints().GetData())
+
+    def getEdgeDataByName(self, varname):
+        """
+        Get the edge field as a numpy array by name
+        @param varname edge field name
+        """
+        data = self.grid.GetCellData().GetArray(varname)
+        numCells = self.grid.GetNumberOfCells()
+        return self.getNumpyArrayFromVtkDoubleArray(numCells, 1, data)
+
 
     def setEdgeField(self, name, edgeData):
         """
@@ -57,6 +69,7 @@ class EdgeToCells:
             gradXsi = numpy.cross(drdEta, zHat) / jac
             gradEta = numpy.cross(zHat, drdXsi) / jac
 
+            # average the X and Y components
             self.vectorValues[i, :] = 0.5*(edgeData[i, 0] - edgeData[i, 2])*gradXsi \
                                     + 0.5*(edgeData[i, 1] - edgeData[i, 3])*gradEta
 
@@ -70,18 +83,18 @@ class EdgeToCells:
         self.grid.GetCellData().AddArray(self.vecData)
 
 
-    def saveToVTKFile(self, filename):
+    def saveToVtkFile(self, filename):
         """
         Save the grid to a VTK file
         @param filename VTK file
         """
         writer = vtk.vtkUnstructuredGridWriter()
         writer.SetFileName(filename)
-        writer.SetInputData(self.vtk['grid'])
+        writer.SetInputData(self.grid)
         writer.Update()
 
 
-    def __getNumpyArrayFromVtkDoubleArray(self, numCells, numComponents, vtkArray):
+    def getNumpyArrayFromVtkDoubleArray(self, numCells, numComponents, vtkArray):
         """
         Get a numpy array from a VTK array
         @param numCells number of cells
@@ -99,4 +112,32 @@ class EdgeToCells:
         else:
             return numpy.frombuffer(ArrayType.from_address(addr)).reshape((numCells, 4, numComponents))
 
+###############################################################################
 
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Read ugrid file')
+    parser.add_argument('-i', dest='input', default='input.vtk', help='Specify input VTK file with edge field')
+    parser.add_argument('-v', dest='varname', default='edge_integrated_velocity', help='Specify variable name of edge field')
+    parser.add_argument('-o', dest='output', default='output.vtk', help='Save grid with cell centred vector field in VTK file')
+
+   
+    args = parser.parse_args()
+
+    reader = vtk.vtkUnstructuredGridReader()
+    reader.SetFileName(args.input)
+    reader.Update()
+
+    grid = reader.GetOutput()
+
+    e2c = EdgeToCells()
+    e2c.setGrid(grid)
+    edgeData = e2c.getEdgeDataByName(args.varname)
+    e2c.setEdgeField('vector_field', edgeData)
+
+    if args.output:
+        e2c.saveToVtkFile(args.output)
+
+if __name__ == '__main__':
+    main()
