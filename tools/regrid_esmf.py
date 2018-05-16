@@ -72,7 +72,7 @@ class RegridEsmf(RegridBase):
         field = self.regrid(self.esmfSrcField, self.esmfDstField)
         res[:, 1] = field.data[:]
 
-        return res.data
+        return res
 
 
 
@@ -127,9 +127,17 @@ def main():
 
     # regrid/apply the weights 
     dstCellVel = rgrd.applyWeights(srcEdgeVel)
-    #print dstCellVel
-    #print dir(dstCellVel)
 
+    if args.output:
+        varr = vtk.vtkDoubleArray()
+        varr.SetNumberOfComponents(dstCellVel.shape[1])
+        varr.SetNumberOfTuples(dstCellVel.shape[0])
+        varr.SetVoidArray(dstCellVel, dstCellVel.shape[0]*dstCellVel.shape[1], 1)
+        varr.SetName('cell_velocity')
+        writer = vtk.vtkUnstructuredGridWriter()
+        writer.SetFileName(args.output)
+        writer.SetInputData(rgrd.getDstGrid())
+        writer.Update()
 
 if __name__ == '__main__':
     main()

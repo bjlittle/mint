@@ -91,6 +91,13 @@ class RegridBase(object):
             res[dstCellId, :] += self.weights[k].dot(srcData[srcCellId, :])
         return res
 
+    def getDstGrid(self):
+        """
+        Get the destination grid
+        @return vtkUnstructuredGrid instance
+        """
+        return self.dstGrid
+
 
     def getSrcEdgeData(self, name):
         """
