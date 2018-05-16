@@ -1,6 +1,7 @@
 from ugrid_reader import UgridReader
 from latlon_reader import LatLonReader
 from regrid_base import RegridBase
+from edge_to_cells import EdgeToCells
 import numpy 
 import vtk
 import ESMF
@@ -46,34 +47,32 @@ class RegridEsmf(RegridBase):
         @param srcData line integrals on the source grid edges, dimensioned (numSrcCells, 4)
         @return line integrals on the destination grid, array dimensioned (numDstCells, 4)
         """
-        numSrcCells = self.srcGrid.GetNumberOfCells()
-        # average the line integrals to cell centres, taking into account the edge orientations
-        srcAvgDataX = 0.5*(srcData[:, 0] - srcData[:, 2])
-        srcAvgDataY = 0.5*(srcData[:, 1] - srcData[:, 3])
 
-        numDstCells = self.dstGrid.GetNumberOfCells()
-        dstDataX = numpy.zeros((numDstCells,), numpy.float64)
-        dstDataY = numpy.zeros((numDstCells,), numpy.float64)
+        # convert the edge field to a cell centred vector field with collocated components
+        e2c = EdgeToCells()
+        e2c.setGrid(self.srcGrid)
+        e2c.setEdgeField('vector_field', srcData)
 
-        # logical X component
-        self.esmfSrcField.data[:] = srcAvgDataX
-        self.regrid(self.esmfSrcField, self.esmfDstField)
-        dstDataX[:] = self.esmfDstField.data
+        dstNumCells = self.dstGrid.GetNumberOfCells()
+        res = numpy.zeros((dstNumCells, 3), numpy.float64)
 
-        # logical Y component
-        self.esmfSrcField.data[:] = srcAvgDataY
-        self.regrid(self.esmfSrcField, self.esmfDstField)
-        dstDataY[:] = self.esmfDstField.data
+        vecData = e2c.getCellVectorField()
 
-        # extrapolate the cell centred line interpolation to 
-        # the cell edges
-        res = numpy.zeros((numDstCells, 4), numpy.float64)
-        res[:, 0] = dstDataX
-        res[:, 1] = dstDataY
-        res[:, 2] = -dstDataX
-        res[:, 3] = -dstDataY
+        #
+        # interpolate the two components separately
+        #
 
-        return res
+        # X
+        self.esmfSrcField.data[:] = vecData[:, 0]
+        field = self.regrid(self.esmfSrcField, self.esmfDstField)
+        res[:, 0] = field.data[:]
+
+        # Y
+        self.esmfSrcField.data[:] = vecData[:, 1]
+        field = self.regrid(self.esmfSrcField, self.esmfDstField)
+        res[:, 1] = field.data[:]
+
+        return res.data
 
 
 
@@ -84,20 +83,24 @@ class RegridEsmf(RegridBase):
     	"""
     	mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2, coord_sys=ESMF.CoordSys.SPH_RAD)
     	lons, lats = self.getGridLonLat(grid)
-    	numNodes = grid.GetNumberOfPoints()
+
+        numCells = grid.GetNumberOfCells()
+        numNodes = numCells*4
     	self.xy = numpy.zeros((numNodes, 2), numpy.float64)
     	self.xy[:, 0] = lons.flat
     	self.xy[:, 1] = lats.flat
-    	self.nodeIds = numpy.arange(0, numNodes) # zero indexing?
-    	self.nodeOwners = numpy.zeros(numNodes)
+
+    	self.nodeIds = numpy.arange(0, numNodes) # zero indexing
+    	self.nodeOwners = numpy.zeros(numNodes) # all running on PE 0
     	mesh.add_nodes(numNodes, self.nodeIds, self.xy, self.nodeOwners)
 
-        numCells = grid.GetNumberOfCells()
-        nIds = self.nodeIds.reshape((numCells, 4))
         self.cellConn = numpy.reshape(self.nodeIds, (numCells, 4))
         self.cellTypes = ESMF.MeshElemType.QUAD * numpy.ones((numCells,), numpy.int)
         self.cellIds = numpy.arange(0, numCells) # zero indexing?
-    	mesh.add_elements(numCells, self.cellIds, self.cellTypes, self.cellConn)
+        # cell centre coords
+        self.cellCoords = 0.25 * self.xy.reshape((numCells, 4, 2)).sum(axis=1) # average cell coordinates
+    	mesh.add_elements(numCells, self.cellIds, self.cellTypes, self.cellConn, element_coords=self.cellCoords)
+
         return mesh
 
 
@@ -123,20 +126,9 @@ def main():
     srcEdgeVel = rgrd.getSrcEdgeData(args.varname)
 
     # regrid/apply the weights 
-    dstEdgeVel = rgrd.applyWeights(srcEdgeVel)
-
-    # loop integrals for each cell
-    cellLoops = dstEdgeVel.sum(axis=1)
-
-    # statistics
-    absCellIntegrals = numpy.abs(cellLoops)
-    minAbsLoop = absCellIntegrals.min()
-    maxAbsLoop = absCellIntegrals.max()
-    avgAbsLoop = absCellIntegrals.sum() / float(absCellIntegrals.shape[0])
-
-    print('Min/avg/max cell loop integrals: {}/{}/{}'.format(minAbsLoop, avgAbsLoop, maxAbsLoop))
-    if args.output:
-        rgrd.saveDstEdgeData(args.varname, dstEdgeVel, args.output)
+    dstCellVel = rgrd.applyWeights(srcEdgeVel)
+    #print dstCellVel
+    #print dir(dstCellVel)
 
 
 if __name__ == '__main__':

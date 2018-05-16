@@ -82,6 +82,19 @@ class EdgeToCells:
         # attach the cell centred vector field to the grid
         self.grid.GetCellData().AddArray(self.vecData)
 
+        self.vecVarName = name
+
+
+    def getCellVectorField(self):
+        """
+        Get the cell centred vector field
+        @return numpy array
+        """
+        data = self.grid.GetCellData().GetArray(self.vecVarName)
+        addr = int(data.GetVoidPointer(0).split('_')[1], 16)
+        ArrayType = ctypes.c_double * self.numCells * 3
+        return numpy.frombuffer(ArrayType.from_address(addr)).reshape((self.numCells, 3))
+
 
     def saveToVtkFile(self, filename):
         """
