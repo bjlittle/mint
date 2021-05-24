@@ -22,6 +22,17 @@ env:
   # Base environment conda packages to be installed
   MAMBA_CACHE_PACKAGES: "pip conda-lock"
 
+
+docker_builder:
+  auto_cancellation: True
+  dummy_script: echo "docker"
+
+dummy_task:
+  auto_cancellation: True
+  depends_on:
+    - docker
+  run_script: echo "running"
+
 #
 # Testing (Linux)
 #
