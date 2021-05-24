@@ -24,6 +24,8 @@ env:
 
 
 docker_builder:
+  name: wibble wobble
+  alias: wibble-alias
   dummy_script: echo "docker"
 
 
