@@ -25,9 +25,14 @@ env:
 
 docker_builder:
   name: wibble wobble
-  alias: wibble-alias
+  alias: wibble
   dummy_script: echo "docker"
 
+dummy_task:
+  name: dummy-task
+  depends_on: wibble
+  main_script:
+    - echo "hello from main"
 
 #
 # Testing (Linux)
