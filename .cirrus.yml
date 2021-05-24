@@ -24,12 +24,13 @@ env:
 
 
 docker_builder:
+  name: builder py37
   alias: py37
   dummy_script:
     - echo "builder py37"
 
-
 docker_builder:
+  name: builder py36
   alias: py36
   dummy_script:
     - echo "builder py36"
