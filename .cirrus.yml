@@ -31,8 +31,10 @@ docker_builder:
     - sleep 30
 
 dummy_task:
+  env:
+    PARENT: wibble
   name: dummy-task
-  depends_on: wibble
+  depends_on: ${PARENT}
   main_script:
     - echo "hello from main"
 
