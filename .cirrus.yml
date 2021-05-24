@@ -24,7 +24,6 @@ env:
 
 
 docker_builder:
-  auto_cancellation: True
   dummy_script: echo "docker"
 
 dummy_task:
