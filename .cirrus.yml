@@ -24,17 +24,25 @@ env:
 
 
 docker_builder:
-  name: wibble wobble
-  alias: wibble
+  alias: py37
   dummy_script:
-    - echo "docker"
-    - sleep 30
+    - echo "builder py37"
+
+
+docker_builder:
+  alias: py36
+  dummy_script:
+    - echo "builder py36"
 
 dummy_task:
-  env:
-    PARENT: wibble
+  matrix:
+    - depends_on: py36
+      env:
+        PY: 36
+    - depends_on: py37
+      env:
+        PY: 37
   name: dummy-task
-  depends_on: ${PARENT}
   main_script:
-    - echo "hello from main"
+    - echo "hello from dummy main ${PY}"
 
